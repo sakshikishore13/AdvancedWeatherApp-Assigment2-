@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weather App with Date Range </title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: auto; padding: 20px; }
+    input, button { padding: 8px; margin: 5px 0; width: 100%; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #0073b1; color: white; }
+    .button-group button { margin-right: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Weather App with Date Range </h1>
+
+  <label>Location:</label>
+  <input type="text" id="location" placeholder="City or ZIP code" />
+
+  <label>Start Date:</label>
+  <input type="date" id="startDate" />
+
+  <label>End Date:</label>
+  <input type="date" id="endDate" />
+
+  <button onclick="fetchWeatherAndSave()">Get Weather & Save</button>
+
+  <h2>Saved Weather Queries</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Location</th>
+        <th>Date Range</th>
+        <th>Temperature</th>
+        <th>Weather</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="weatherList"></tbody>
+  </table>
+
+  <script>
+    const OPENWEATHER_API_KEY = '91e2b77049f24821b5bc9cbd36854082'; // Replace with your API key
+
+    // Load saved entries from localStorage on page load
+    document.addEventListener('DOMContentLoaded', loadSavedEntries);
+
+    async function fetchWeatherAndSave() {
+      const location = document.getElementById('location').value.trim();
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+
+      if (!location || !startDate || !endDate) {
+        alert('Please fill all fields');
+        return;
+      }
+      if (new Date(startDate) > new Date(endDate)) {
+        alert('Start date cannot be after end date');
+        return;
+      }
+
+      try {
+        const weatherResp = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${OPENWEATHER_API_KEY}&units=metric`
+        );
+
+        if (!weatherResp.ok) throw new Error('Invalid location or API error');
+
+        const weatherData = await weatherResp.json();
+
+        const entry = {
+          id: Date.now().toString(),
+          location,
+          startDate,
+          endDate,
+          temp: weatherData.main.temp,
+          weatherDesc: weatherData.weather[0].description
+        };
+
+        // Save in localStorage
+        const savedEntries = JSON.parse(localStorage.getItem('weatherEntries') || '[]');
+        savedEntries.push(entry);
+        localStorage.setItem('weatherEntries', JSON.stringify(savedEntries));
+
+        alert('Weather data saved locally!');
+        loadSavedEntries();
+
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    function loadSavedEntries() {
+      const savedEntries = JSON.parse(localStorage.getItem('weatherEntries') || '[]');
+      const tbody = document.getElementById('weatherList');
+      tbody.innerHTML = '';
+
+      savedEntries.forEach(entry => {
+        const tr = document.createElement('tr');
+
+        const dateRange = `${new Date(entry.startDate).toLocaleDateString()} - ${new Date(entry.endDate).toLocaleDateString()}`;
+
+        tr.innerHTML = `
+          <td>${entry.location}</td>
+          <td>${dateRange}</td>
+          <td>${entry.temp} °C</td>
+          <td>${entry.weatherDesc}</td>
+          <td><button onclick="deleteEntry('${entry.id}')">Delete</button></td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function deleteEntry(id) {
+      if (!confirm('Delete this entry?')) return;
+
+      let savedEntries = JSON.parse(localStorage.getItem('weatherEntries') || '[]');
+      savedEntries = savedEntries.filter(e => e.id !== id);
+      localStorage.setItem('weatherEntries', JSON.stringify(savedEntries));
+      loadSavedEntries();
+    }
+  </script>
+</body>
+</html>
